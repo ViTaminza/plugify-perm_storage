@@ -1,0 +1,18 @@
+{
+	"$schema": "https://raw.githubusercontent.com/untrustedmodders/plugify/refs/heads/main/schemas/plugin.schema.json",
+	"version": "${PERM_STORAGE_VERSION}",
+	"name": "perm_storage",
+	"description": "Persistence backend for the official permissions plugin: stores users (immunity, name, timestamps), groups, group permissions and options, user permissions, user groups and user cookies in MySQL or SQLite. Loads the groups into the core at startup, answers the core's user-load requests asynchronously and mirrors every *Storage event back into the database. No exported methods; install it next to a connector plugin (e.g. perm_connector) that calls LoadUser.",
+	"author": "Pisex, ported to Plugify",
+	"website": "https://github.com/untrustedmodders/plugify",
+	"license": "GPL-3.0",
+	"entry": "bin/perm_storage",
+	"platforms": [],
+	"language": "cpp",
+	"dependencies": [
+		{
+			"name": "permissions",
+			"constraints": ">=1.3.1"
+		}
+	]
+}
