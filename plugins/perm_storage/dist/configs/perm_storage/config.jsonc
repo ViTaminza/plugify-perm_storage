@@ -1,0 +1,7 @@
+{
+	// The database connection of this plugin lives in databases.cfg, next to this file:
+	// configs/perm_storage/databases.cfg, section "perm_storage"
+	// (docs/PLUGIN_STANDARD.md section 4). While that section does not exist, the plugin still
+	// reads the legacy connection keys of this file (driver, sqlite_path, host, port, user,
+	// password, database) and logs one warning.
+}
