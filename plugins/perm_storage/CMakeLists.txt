@@ -4,7 +4,7 @@
 #   perm_storage_config    the databases.cfg reader (PLUGIN_STANDARD.md section 4)
 #   plugify-perm_storage   the plugin shared library (entry "bin/perm_storage" -> bin/libperm_storage.so)
 
-set(PERM_STORAGE_VERSION "1.0.2")
+set(PERM_STORAGE_VERSION "1.1.0")
 
 # --- core ---------------------------------------------------------------------
 add_library(perm_storage_core STATIC src/perm_storage_core.cpp)
@@ -14,26 +14,23 @@ target_compile_options(perm_storage_core PRIVATE -Wall -Wextra -Werror)
 target_compile_definitions(perm_storage_core PUBLIC _GLIBCXX_USE_CXX11_ABI=1)
 
 # --- database settings ---------------------------------------------------------
-# The reader of <GetConfigsDir()>/perm_storage/databases.cfg, section "perm_storage"
-# (PLUGIN_STANDARD.md section 4): databases.cfg first, the legacy keys of config.jsonc - with one
-# warning - while the section does not exist (src/db_config.hpp). Separate from perm_storage_core so
-# the storage core stays free of plugify/pisexcompat dependencies, and separate from plugin.cpp so
-# tests/db_config_tests.cpp can drive the precedence rules without an engine.
+# The reader of the plugin's databases.cfg, section "perm_storage" (PLUGIN_STANDARD.md section 4).
+# The search order is the old one: the raw Metamod "addons/configs/databases.cfg" (relative to the
+# server working directory), then <configs>/perm_storage/databases.cfg, its translations directory
+# and <data>/perm_storage/databases.cfg; the first existing file is authoritative, and only when it
+# is missing, malformed or lacks the section do the legacy keys of config.jsonc apply - with one
+# warning (src/db_config.hpp). Separate from perm_storage_core so the storage core stays free of the
+# plugify config-directory lookup, and separate from plugin.cpp so tests/db_config_tests.cpp can
+# drive the precedence rules without an engine.
 #
-# perm_storage is engine-agnostic - its manifest depends on the permissions plugin only - so instead
-# of linking the whole pisexcompat, whose PUBLIC link would also compile the s2sdk/hudmenu binding
-# globals into this .so, only its KeyValues parser and the config/data path mapping are built here.
-add_library(perm_storage_config STATIC
-        src/db_config.cpp
-        "${CMAKE_SOURCE_DIR}/libs/pisexcompat/src/keyvalues.cpp"
-        "${CMAKE_SOURCE_DIR}/libs/pisexcompat/src/paths.cpp")
+# perm_storage is engine-agnostic and self-contained (docs/PLUGIN_STANDARD.md section 7): the
+# databases.cfg reader uses the plugin's own KV1 parser (src/kv1.hpp) and two local path helpers,
+# so no shim library is compiled into this .so.
+add_library(perm_storage_config STATIC src/db_config.cpp)
 target_include_directories(perm_storage_config PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-# SYSTEM: warnings from the pisexcompat and generated sdk headers must not fail -Werror on our sources.
-target_include_directories(perm_storage_config SYSTEM PRIVATE
-        "${CMAKE_SOURCE_DIR}/libs/pisexcompat/include"
-        "${CMAKE_SOURCE_DIR}/sdk/include")
+# SYSTEM: warnings from the generated plg/nlohmann headers must not fail -Werror on our sources.
+target_include_directories(perm_storage_config SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/sdk/include")
 target_link_libraries(perm_storage_config PUBLIC plgdb)
-# The same flags libs/pisexcompat compiles its own sources with (its headers are not ours to fix).
 target_compile_options(perm_storage_config PRIVATE -Wall -Wextra -Werror -fvisibility=hidden)
 target_compile_definitions(perm_storage_config PUBLIC _GLIBCXX_USE_CXX11_ABI=1)
 
@@ -74,9 +71,7 @@ configure_file(
 # ../test.sh from build/tests like every other *_tests executable. The storage core's own tests stay
 # in ../tests/perm_storage_tests.cpp.
 add_executable(perm_storage_dbconfig_tests tests/db_config_tests.cpp)
-target_include_directories(perm_storage_dbconfig_tests SYSTEM PRIVATE
-        "${CMAKE_SOURCE_DIR}/libs/pisexcompat/include"
-        "${CMAKE_SOURCE_DIR}/sdk/include")
+target_include_directories(perm_storage_dbconfig_tests SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/sdk/include")
 target_link_libraries(perm_storage_dbconfig_tests PRIVATE perm_storage_config -static-libstdc++ -static-libgcc)
 target_compile_options(perm_storage_dbconfig_tests PRIVATE -Wall -Wextra -Werror)
 target_compile_definitions(perm_storage_dbconfig_tests PRIVATE _GLIBCXX_USE_CXX11_ABI=1)

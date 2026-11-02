@@ -461,6 +461,28 @@ bool PermStoragePlugin::CreateDatabase(std::string& error) {
 		g_permStoragePlugin.ApplyUserPlan(plan);
 	};
 
+	// The schema and group reads below block the game thread (OnPluginStart runs inside the map
+	// start), and plgdb retries a failed connect once, so a database that is down at boot (not yet
+	// started after a host reboot, or a blackholed port) holds it for ~10 s before the first
+	// statement gives up. Probe first with a one-second connect timeout and no retry; when the
+	// database is unreachable the caller arms the asynchronous recovery pump, which does exactly
+	// this work on the worker thread instead.
+	if (m_dbConfig.driver == plgdb::Driver::MySQL) {
+		plgdb::Config probeConfig = m_dbConfig;
+		probeConfig.connectTimeoutSec = 1;
+		probeConfig.maxReconnectAttempts = 0;
+		const std::unique_ptr<plgdb::Database> probe = plgdb::Database::Create(probeConfig);
+		if (!probe) {
+			error = "failed to create the database handle (invalid config)";
+			return false;
+		}
+		const plgdb::Result reachable = probe->QuerySync("SELECT 1", {});
+		if (!reachable.Ok()) {
+			error = "the database is not reachable yet: " + reachable.Error();
+			return false;
+		}
+	}
+
 	try {
 		m_store->EnsureSchema();
 	} catch (const std::exception& ex) {

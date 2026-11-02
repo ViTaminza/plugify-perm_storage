@@ -651,7 +651,8 @@ void PermStore::StartUserLoad(uint64_t steamid, std::string username, bool offli
 		return; // loaded or loading already
 	}
 	state.phase = UserState::Phase::Loading;
-	const uint64_t generation = ++state.generation;
+	const uint64_t generation = ++m_nextGeneration;
+	state.generation = generation;
 
 	auto pending = std::make_shared<PendingUserLoad>();
 	pending->steamid = steamid;
@@ -858,12 +859,10 @@ void PermStore::FinishUserLoad(PendingUserLoad& pending) {
 
 void PermStore::ForgetUser(uint64_t steamid) {
 	m_retries.erase(steamid); // a deleted user must not be loaded again by a pending retry
-	const auto it = m_users.find(steamid);
-	if (it == m_users.end()) {
-		return;
-	}
-	++it->second.generation; // anything in flight for this steamid is now stale
-	it->second.phase = UserState::Phase::None;
+	// Drop the node instead of keeping it: an entry per distinct SteamID would stay in the map for
+	// the whole process lifetime. A load still in flight is discarded by FinishUserLoad() (the
+	// generation never matches - see m_nextGeneration), so it cannot resurrect the user either.
+	m_users.erase(steamid);
 }
 
 bool PermStore::IsUserLoaded(uint64_t steamid) const {

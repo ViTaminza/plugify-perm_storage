@@ -214,6 +214,9 @@ public:
 
 	bool IsUserLoaded(uint64_t steamid) const;
 
+	// Number of steamids with cached load state (diagnostics and tests; see ForgetUser()).
+	std::size_t TrackedUserCount() const { return m_users.size(); }
+
 	// --- writers (all asynchronous, errors go to onError) --------------------
 	void SaveUserImmunity(uint64_t steamid, int64_t immunity);
 	void SaveUserPermission(uint64_t steamid, const PermChange& change);
@@ -299,6 +302,10 @@ private:
 	bool m_groupsLoaded = false;
 	std::map<uint64_t, UserState> m_users;
 	std::map<uint64_t, Retry> m_retries;
+	// Load token, unique for the process lifetime: a forgotten user's node is erased (see
+	// ForgetUser()), so a per-user counter would hand the same number to the next load of the same
+	// steamid and a stale in-flight result could then be applied to it.
+	uint64_t m_nextGeneration = 0;
 	int m_maxAttempts = 3;
 	int m_retryDelaySec = 5;
 };
